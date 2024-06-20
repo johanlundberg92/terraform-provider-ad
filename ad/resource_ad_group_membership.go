@@ -41,16 +41,31 @@ func resourceADGroupMembership() *schema.Resource {
 
 func resourceADGroupMembershipRead(d *schema.ResourceData, meta interface{}) error {
 	toks := strings.Split(d.Id(), "_")
-
+	providerConfig := meta.(*config.ProviderConf)
 	gm, err := winrmhelper.NewGroupMembershipFromHost(meta.(*config.ProviderConf), toks[0])
 	if err != nil {
 		return err
 	}
 	memberList := make([]string, len(gm.GroupMembers))
-
-	for idx, m := range gm.GroupMembers {
-		memberList[idx] = m.GUID
+	if strings.EqualFold(providerConfig.Settings.MembershipAttribute, "SamAccountName") {
+		for idx, m := range gm.GroupMembers {
+			memberList[idx] = m.SamAccountName
+		}
+	} else if strings.EqualFold(providerConfig.Settings.MembershipAttribute, "DN") {
+		for idx, m := range gm.GroupMembers {
+			memberList[idx] = m.DN
+		}
+	} else if strings.EqualFold(providerConfig.Settings.MembershipAttribute, "Name") {
+		for idx, m := range gm.GroupMembers {
+			memberList[idx] = m.Name
+		}
+	} else {
+		// Default to GUID
+		for idx, m := range gm.GroupMembers {
+			memberList[idx] = m.GUID
+		}
 	}
+
 	_ = d.Set("group_members", memberList)
 	_ = d.Set("group_id", toks[0])
 	return nil
