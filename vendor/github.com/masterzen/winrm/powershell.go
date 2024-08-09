@@ -3,20 +3,21 @@ package winrm
 import (
 	"encoding/base64"
 	"fmt"
+	"unicode/utf16"
 )
 
-// Powershell wraps a PowerShell script
-// and prepares it for execution by the winrm client
 func Powershell(psCmd string) string {
-	// 2 byte chars to make PowerShell happy
-	wideCmd := ""
-	for _, b := range []byte(psCmd) {
-		wideCmd += string(b) + "\x00"
+	// Encode the string to UTF-16LE
+	encoded := utf16.Encode([]rune(psCmd))
+
+	// Convert UTF-16LE encoded []uint16 to []byte
+	var buf []byte
+	for _, r := range encoded {
+		buf = append(buf, byte(r&0xff), byte(r>>8))
 	}
 
-	// Base64 encode the command
-	input := []uint8(wideCmd)
-	encodedCmd := base64.StdEncoding.EncodeToString(input)
+	// Base64 encode the UTF-16LE bytes
+	encodedCmd := base64.StdEncoding.EncodeToString(buf)
 
 	// Create the powershell.exe command line to execute the script
 	return fmt.Sprintf("powershell.exe -EncodedCommand %s", encodedCmd)
